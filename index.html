@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xizoa Private Chat</title>
+    <style>
+        /* --- CSS STYLES (Design) --- */
+        :root {
+            --bg-color: #121212;
+            --chat-bg: #1e1e1e;
+            --primary: #00bcd4; /* Cyan Blue - Tech Vibe */
+            --my-msg-bg: #005c6e;
+            --other-msg-bg: #333;
+            --text-color: #eee;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px; /* Mobile width limit */
+            background: var(--chat-bg);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Header */
+        header {
+            padding: 15px;
+            background: #000;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: var(--primary);
+        }
+
+        /* Login Screen */
+        #login-screen {
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            justify-content: center;
+            height: 100%;
+        }
+
+        input {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #2a2a2a;
+            color: white;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: var(--primary);
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        /* Chat Screen */
+        #chat-screen {
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.4;
+            position: relative;
+        }
+
+        .my-message {
+            align-self: flex-end;
+            background-color: var(--my-msg-bg);
+            border-bottom-right-radius: 2px;
+        }
+
+        .other-message {
+            align-self: flex-start;
+            background-color: var(--other-msg-bg);
+            border-bottom-left-radius: 2px;
+        }
+
+        .sender-name {
+            font-size: 10px;
+            color: #aaa;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 15px;
+            background: #000;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #333;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>XIZOA CHAT</header>
+
+        <div id="login-screen">
+            <h3 style="text-align: center;">Join a Secret Room</h3>
+            <input type="text" id="username" placeholder="Apna Naam (Display Name)">
+            <input type="text" id="roomCode" placeholder="Room Code (e.g. 9988)">
+            <button onclick="joinRoom()">ENTER ROOM</button>
+        </div>
+
+        <div id="chat-screen">
+            <div id="messages">
+                </div>
+            <div class="input-area">
+                <input type="text" id="msgInput" placeholder="Message..." onkeypress="handleEnter(event)">
+                <button onclick="sendMessage()" style="width: 80px;">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+        
+        // IMPORTANT: Jab aap Worker bana lein, uska URL yahan paste karein
+        // Example: "https://chat-api.priyanshu.workers.dev"
+        const API_URL = "WORKER_URL_YAHAN_DALNA_HAI"; 
+
+        let currentUser = "";
+        let currentRoom = "";
+        let intervalId = null;
+
+        // 1. Room Join Karna
+        function joinRoom() {
+            const name = document.getElementById('username').value.trim();
+            const room = document.getElementById('roomCode').value.trim();
+
+            if (!name || !room) {
+                alert("Naam aur Room Code dono zaruri hain!");
+                return;
+            }
+
+            currentUser = name;
+            currentRoom = room;
+
+            // UI Switch
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('chat-screen').style.display = 'flex';
+
+            // Pehli baar load karein aur fir har 2 second mein check karein
+            fetchMessages();
+            intervalId = setInterval(fetchMessages, 2000); 
+        }
+
+        // 2. Message Bhejna
+        async function sendMessage() {
+            const input = document.getElementById('msgInput');
+            const msg = input.value.trim();
+
+            if (!msg) return;
+
+            // Optimistic UI (Turant dikha do bina wait kiye)
+            renderMessage(currentUser, msg, true);
+            input.value = ""; // Clear input
+
+            if(API_URL === "WORKER_URL_YAHAN_DALNA_HAI") {
+                console.log("Worker URL set nahi hai, lekin UI test ho raha hai.");
+                return;
+            }
+
+            try {
+                await fetch(`${API_URL}/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        room_id: currentRoom,
+                        username: currentUser,
+                        message: msg
+                    })
+                });
+            } catch (error) {
+                console.error("Error sending message:", error);
+            }
+        }
+
+        // 3. Messages Lana (Refresh)
+        async function fetchMessages() {
+            if(API_URL === "WORKER_URL_YAHAN_DALNA_HAI") return;
+
+            try {
+                const res = await fetch(`${API_URL}/messages?room_id=${currentRoom}`);
+                const data = await res.json();
+                
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML = ""; // Purana clear karke naya lagao
+
+                data.forEach(msg => {
+                    const isMe = msg.username === currentUser;
+                    renderMessage(msg.username, msg.message, isMe);
+                });
+            } catch (error) {
+                console.error("Error fetching messages:", error);
+            }
+        }
+
+        // Helper: Screen par message dikhana
+        function renderMessage(user, text, isMe) {
+            const messagesDiv = document.getElementById('messages');
+            
+            const div = document.createElement('div');
+            div.className = `message ${isMe ? 'my-message' : 'other-message'}`;
+            
+            // Dusre ka naam dikhao
+            if (!isMe) {
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'sender-name';
+                nameSpan.innerText = user;
+                div.appendChild(nameSpan);
+            }
+
+            const textSpan = document.createElement('span');
+            textSpan.innerText = text;
+            div.appendChild(textSpan);
+
+            messagesDiv.appendChild(div);
+            
+            // Auto scroll to bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // "Enter" dabane par send ho
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+    </script>
+</body>
+</html>
